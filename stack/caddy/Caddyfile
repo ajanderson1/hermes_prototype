@@ -20,12 +20,16 @@
 		redir /graf/ permanent
 	}
 
-	# mitmweb — egress audit UI
+	# mitmweb — egress audit UI.
+	# mitmweb's DNS-rebinding guard rejects any Host: header that isn't an IP
+	# or 'localhost'. We rewrite Host: 127.0.0.1:8081 before forwarding.
 	handle_path /mitm/* {
 		basic_auth {
 			admin {$BASICAUTH_ADMIN_HASH}
 		}
-		reverse_proxy 127.0.0.1:8081
+		reverse_proxy 127.0.0.1:8081 {
+			header_up Host 127.0.0.1:8081
+		}
 	}
 	@mitm_root path /mitm
 	handle @mitm_root {

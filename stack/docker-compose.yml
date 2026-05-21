@@ -82,6 +82,9 @@ services:
     container_name: mitmproxy
     restart: unless-stopped
     network_mode: host
+    # NB: mitmweb has a DNS-rebinding guard that rejects requests whose Host
+    # header is not an IP or 'localhost'. Caddy strips that with a
+    # Host: 127.0.0.1:8081 rewrite on the /mitm/ route.
     command: >-
       mitmweb
       --listen-host 127.0.0.1
