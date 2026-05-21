@@ -1,0 +1,47 @@
+# Secrets (never commit plaintext)
+*.env
+!*.env.example
+*.env.age.dec
+secrets/
+*.key
+*.pem
+!mitmproxy/ca-cert.pem  # placeholder; real CA stays out
+
+# OpenTofu / Terraform
+.terraform/
+.terraform.lock.hcl
+*.tfstate
+*.tfstate.*
+*.tfvars
+!envs/*.tfvars.example
+crash.log
+crash.*.log
+
+# Docker volumes / mounted data
+data/
+volumes/
+*.log
+flows/
+plans/*.md
+!plans/.gitkeep
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/
+*.swp
+
+# Worktrees
+.worktrees/
+
+# Project notes (Obsidian-side artefacts that shouldn't live in repo)
+.obsidian/
