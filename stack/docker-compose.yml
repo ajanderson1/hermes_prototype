@@ -123,17 +123,19 @@ services:
     environment:
       - HERMES_UID=10000
       - HERMES_GID=10000
-      - HTTPS_PROXY=http://127.0.0.1:8080
-      - HTTP_PROXY=http://127.0.0.1:8080
-      - https_proxy=http://127.0.0.1:8080
-      - http_proxy=http://127.0.0.1:8080
-      # Telegram blocks intercepted TLS — bypass mitmproxy. Both case
-      # variants because httpx, urllib3 + requests check different ones.
-      - NO_PROXY=127.0.0.1,localhost,api.telegram.org,*.telegram.org
-      - no_proxy=127.0.0.1,localhost,api.telegram.org,*.telegram.org
+      # Mitmproxy is for auditing the OpenAI egress, not Telegram traffic.
+      # We don't set HTTPS_PROXY globally because python-telegram-bot's
+      # httpx client doesn't honor NO_PROXY. Instead, configure OpenAI
+      # explicitly via OPENAI_BASE_URL pointing through mitmproxy below.
+      # Hermes still trusts the mitmproxy CA for the OpenAI-via-proxy case.
       - REQUESTS_CA_BUNDLE=/opt/data/mitm-certs/mitmproxy-ca-cert.pem
       - SSL_CERT_FILE=/opt/data/mitm-certs/mitmproxy-ca-cert.pem
       - CURL_CA_BUNDLE=/opt/data/mitm-certs/mitmproxy-ca-cert.pem
+      # The openai SDK honors OPENAI_PROXY (and OPENAI_BASE_URL if you'd
+      # rather route through a custom endpoint). Routing only OpenAI
+      # through mitmproxy keeps the audit story intact without breaking
+      # Telegram messaging.
+      - OPENAI_PROXY=http://127.0.0.1:8080
       - PYTHONUNBUFFERED=1
     volumes:
       - hermes_data:/opt/data
