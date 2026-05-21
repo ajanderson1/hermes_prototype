@@ -71,8 +71,18 @@ runcmd:
     chown hermes:hermes /opt/hermes
     sudo -u hermes git clone --branch ${repo_ref} ${repo_url} /opt/hermes
 
+    # 4.5 Decrypt stack env (if age key is present; operator SCPs it after first boot)
+    mkdir -p /opt/hermes/secrets
+    if [ -f /opt/hermes/secrets/age.key ] && [ -f /opt/hermes/secrets/.env.age ]; then
+      age --decrypt -i /opt/hermes/secrets/age.key -o /opt/hermes/stack/.env /opt/hermes/secrets/.env.age
+      chown hermes:hermes /opt/hermes/stack/.env
+      chmod 600 /opt/hermes/stack/.env
+    else
+      echo "WARN: /opt/hermes/secrets/age.key or .env.age missing — stack/.env will not be created at boot. SCP these after boot then run: cd /opt/hermes/stack && docker compose up -d"
+    fi
+
     # 5. Bring up the stack (Caddy only in P1)
-    cd /opt/hermes/stack && docker compose up -d
+    cd /opt/hermes/stack && docker compose up -d || echo "WARN: docker compose up failed — likely missing /opt/hermes/stack/.env; SCP age key + .env.age then retry"
 
     # 6. Signal ready
     touch /var/lib/hermes-bootstrap-complete
