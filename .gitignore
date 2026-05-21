@@ -13,7 +13,7 @@ secrets/
 *.tfstate
 *.tfstate.*
 *.tfvars
-!envs/*.tfvars.example
+!infra/envs/example.tfvars
 crash.log
 crash.*.log
 
@@ -45,3 +45,4 @@ __pycache__/
 
 # Project notes (Obsidian-side artefacts that shouldn't live in repo)
 .obsidian/
+stack/.env.age

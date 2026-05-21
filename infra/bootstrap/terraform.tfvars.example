@@ -1,0 +1,5 @@
+billing_account = "01ABCD-23EFGH-45IJKL"
+project_id      = "hermes-prototype-aja"   # must be globally unique
+project_name    = "Hermes Prototype"
+org_id          = ""                       # leave empty for personal accounts
+region          = "europe-west2"
