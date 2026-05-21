@@ -43,48 +43,53 @@ write_files:
   - path: /etc/hermes/age.recipient
     permissions: "0644"
     content: ${age_recipient}
+  - path: /opt/hermes-bootstrap.sh
+    permissions: "0755"
+    content: |
+      #!/usr/bin/env bash
+      set -euxo pipefail
+
+      # 1. Harden SSH (Ubuntu 24.04 names the unit `ssh`, not `sshd`)
+      systemctl restart ssh
+
+      # 2. Firewall
+      ufw default deny incoming
+      ufw default allow outgoing
+      ufw allow Hermes-SSH
+      ufw allow 80/tcp
+      ufw allow 443/tcp
+      ufw --force enable
+
+      # 3. Install Docker
+      install -m 0755 -d /etc/apt/keyrings
+      curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
+      chmod a+r /etc/apt/keyrings/docker.asc
+      echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu $(. /etc/os-release && echo $${VERSION_CODENAME}) stable" > /etc/apt/sources.list.d/docker.list
+      apt-get update
+      apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+
+      # 4. Clone repo at pinned ref
+      mkdir -p /opt/hermes
+      chown hermes:hermes /opt/hermes
+      sudo -u hermes git clone --branch ${repo_ref} ${repo_url} /opt/hermes
+
+      # 4.5 Decrypt stack env (if age key is present; operator SCPs it after first boot)
+      mkdir -p /opt/hermes/secrets
+      if [ -f /opt/hermes/secrets/age.key ] && [ -f /opt/hermes/secrets/.env.age ]; then
+        age --decrypt -i /opt/hermes/secrets/age.key -o /opt/hermes/stack/.env /opt/hermes/secrets/.env.age
+        chown hermes:hermes /opt/hermes/stack/.env
+        chmod 600 /opt/hermes/stack/.env
+      else
+        echo "WARN: /opt/hermes/secrets/age.key or .env.age missing — stack/.env will not be created at boot. SCP these after boot then run: cd /opt/hermes/stack && docker compose up -d"
+      fi
+
+      # 5. Bring up the stack (Caddy only in P1)
+      cd /opt/hermes/stack && docker compose up -d || echo "WARN: docker compose up failed — likely missing /opt/hermes/stack/.env; SCP age key + .env.age then retry"
+
+      # 6. Signal ready
+      touch /var/lib/hermes-bootstrap-complete
 
 runcmd:
-  - |
-    set -euxo pipefail
-    # 1. Harden SSH
-    systemctl restart sshd
-
-    # 2. Firewall
-    ufw default deny incoming
-    ufw default allow outgoing
-    ufw allow Hermes-SSH
-    ufw allow 80/tcp
-    ufw allow 443/tcp
-    ufw --force enable
-
-    # 3. Install Docker
-    install -m 0755 -d /etc/apt/keyrings
-    curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
-    chmod a+r /etc/apt/keyrings/docker.asc
-    echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu $(. /etc/os-release && echo $${VERSION_CODENAME}) stable" > /etc/apt/sources.list.d/docker.list
-    apt-get update
-    apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
-
-    # 4. Clone repo at pinned ref
-    mkdir -p /opt/hermes
-    chown hermes:hermes /opt/hermes
-    sudo -u hermes git clone --branch ${repo_ref} ${repo_url} /opt/hermes
-
-    # 4.5 Decrypt stack env (if age key is present; operator SCPs it after first boot)
-    mkdir -p /opt/hermes/secrets
-    if [ -f /opt/hermes/secrets/age.key ] && [ -f /opt/hermes/secrets/.env.age ]; then
-      age --decrypt -i /opt/hermes/secrets/age.key -o /opt/hermes/stack/.env /opt/hermes/secrets/.env.age
-      chown hermes:hermes /opt/hermes/stack/.env
-      chmod 600 /opt/hermes/stack/.env
-    else
-      echo "WARN: /opt/hermes/secrets/age.key or .env.age missing — stack/.env will not be created at boot. SCP these after boot then run: cd /opt/hermes/stack && docker compose up -d"
-    fi
-
-    # 5. Bring up the stack (Caddy only in P1)
-    cd /opt/hermes/stack && docker compose up -d || echo "WARN: docker compose up failed — likely missing /opt/hermes/stack/.env; SCP age key + .env.age then retry"
-
-    # 6. Signal ready
-    touch /var/lib/hermes-bootstrap-complete
+  - [ /bin/bash, /opt/hermes-bootstrap.sh ]
 
 final_message: "Hermes prototype host bootstrapped in $UPTIME seconds."
