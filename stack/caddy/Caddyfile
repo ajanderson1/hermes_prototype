@@ -36,12 +36,16 @@
 		redir /mitm/ permanent
 	}
 
-	# Hermes — agent web surface (optional UI / status)
+	# Hermes — agent web surface (the hermes-dashboard uvicorn app).
+	# The dashboard enforces Host: 127.0.0.1 to prevent CSRF on a chat UI
+	# that handles API keys — Caddy rewrites the Host header before forwarding.
 	handle_path /hermes/* {
 		basic_auth {
 			admin {$BASICAUTH_ADMIN_HASH}
 		}
-		reverse_proxy 127.0.0.1:8088
+		reverse_proxy 127.0.0.1:8088 {
+			header_up Host 127.0.0.1:8088
+		}
 	}
 	@hermes_root path /hermes
 	handle @hermes_root {
