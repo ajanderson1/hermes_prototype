@@ -87,13 +87,17 @@ services:
     container_name: mitmproxy
     restart: unless-stopped
     network_mode: host
+    # Reverse-proxy mode: clients call mitm directly (no proxy config needed)
+    # and mitm forwards to api.openai.com with full audit logging. Hermes
+    # talks to OpenAI by setting OPENAI_BASE_URL=http://127.0.0.1:8080/v1.
+    # mitmweb still serves its inspector UI on 8081.
     # NB: mitmweb has a DNS-rebinding guard that rejects requests whose Host
     # header is not an IP or 'localhost'. Caddy strips that with a
     # Host: 127.0.0.1:8081 rewrite on the /mitm/ route.
     command: >-
       mitmweb
+      --mode reverse:https://api.openai.com@8080
       --listen-host 127.0.0.1
-      --listen-port 8080
       --web-host 127.0.0.1
       --web-port 8081
       --set web_open_browser=false
