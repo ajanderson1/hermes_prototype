@@ -8,8 +8,10 @@
 		respond "ok" 200
 	}
 
-	# Grafana — observability dashboard
-	handle_path /graf/* {
+	# Grafana — observability dashboard.
+	# `handle` (not `handle_path`) keeps the /graf prefix on the upstream
+	# request — Grafana with serve_from_sub_path=true requires it.
+	handle /graf/* {
 		basic_auth {
 			admin {$BASICAUTH_ADMIN_HASH}
 		}
