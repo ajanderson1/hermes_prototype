@@ -1,0 +1,7 @@
+terraform.tfvars
+tofu-runner-credentials.json
+.terraform/
+*.tfstate
+*.tfstate.backup
+.terraform.lock.hcl
+*.plan
