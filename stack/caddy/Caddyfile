@@ -33,6 +33,7 @@
 	handle @mitm_ws {
 		reverse_proxy 127.0.0.1:8081 {
 			header_up Host 127.0.0.1:8081
+			header_up Origin http://127.0.0.1:8081
 		}
 	}
 	@mitm_api path /flows /flows/* /commands /clear /options /filter-help /processes /static/* /dns-rebind
@@ -42,6 +43,7 @@
 		}
 		reverse_proxy 127.0.0.1:8081 {
 			header_up Host 127.0.0.1:8081
+			header_up Origin http://127.0.0.1:8081
 		}
 	}
 	handle_path /mitm/* {
@@ -50,6 +52,7 @@
 		}
 		reverse_proxy 127.0.0.1:8081 {
 			header_up Host 127.0.0.1:8081
+			header_up Origin http://127.0.0.1:8081
 		}
 	}
 	@mitm_root path /mitm
