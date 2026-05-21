@@ -125,22 +125,24 @@ services:
       - HERMES_GID=10000
       # Mitmproxy is for auditing the OpenAI egress, not Telegram traffic.
       # We don't set HTTPS_PROXY globally because python-telegram-bot's
-      # httpx client doesn't honor NO_PROXY. Instead, configure OpenAI
-      # explicitly via OPENAI_BASE_URL pointing through mitmproxy below.
-      # Hermes still trusts the mitmproxy CA for the OpenAI-via-proxy case.
-      - REQUESTS_CA_BUNDLE=/opt/data/mitm-certs/mitmproxy-ca-cert.pem
-      - SSL_CERT_FILE=/opt/data/mitm-certs/mitmproxy-ca-cert.pem
-      - CURL_CA_BUNDLE=/opt/data/mitm-certs/mitmproxy-ca-cert.pem
-      # The openai SDK honors OPENAI_PROXY (and OPENAI_BASE_URL if you'd
-      # rather route through a custom endpoint). Routing only OpenAI
-      # through mitmproxy keeps the audit story intact without breaking
-      # Telegram messaging.
+      # httpx client doesn't honor NO_PROXY env var. Instead, route only
+      # OpenAI through the proxy via OPENAI_PROXY below.
+      #
+      # The CA bundle is the SYSTEM ca-certificates CONCATENATED with the
+      # mitmproxy CA. If we set SSL_CERT_FILE to just the mitmproxy cert,
+      # Python rejects real Telegram TLS certs (signed by public CAs).
+      # The combined bundle is built once by scripts/build-combined-ca.sh
+      # and lives at /opt/hermes/data/ca/combined-ca.pem.
+      - REQUESTS_CA_BUNDLE=/etc/ssl/certs/combined-ca.pem
+      - SSL_CERT_FILE=/etc/ssl/certs/combined-ca.pem
+      - CURL_CA_BUNDLE=/etc/ssl/certs/combined-ca.pem
       - OPENAI_PROXY=http://127.0.0.1:8080
       - PYTHONUNBUFFERED=1
     volumes:
       - hermes_data:/opt/data
       - mitm_data:/opt/data/mitm-certs:ro
       - /opt/hermes/data/audit:/audit
+      - /opt/hermes/data/ca/combined-ca.pem:/etc/ssl/certs/combined-ca.pem:ro
     command: ["gateway", "run"]
     depends_on:
       mitmproxy:
