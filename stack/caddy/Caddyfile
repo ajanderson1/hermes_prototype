@@ -39,13 +39,12 @@
 	}
 
 	# Hermes — agent web surface (the hermes-dashboard uvicorn app).
-	# Hermes' dashboard supports sub-path serving via X-Forwarded-Prefix —
-	# it then injects the prefix into asset URLs + __HERMES_BASE_PATH__.
-	# Use `handle` (NOT `handle_path`) to KEEP the /hermes prefix so the
-	# dashboard sees the URL it expects and the SPA's API calls also land
-	# under /hermes/api/.
-	# Host rewrite needed because the dashboard enforces Host: 127.0.0.1.
-	handle /hermes/* {
+	# Hermes' dashboard registers routes at /api/... (no prefix). We must
+	# STRIP the /hermes prefix before forwarding (handle_path does that)
+	# AND send X-Forwarded-Prefix so the SPA's HTML rewrites still work
+	# (asset paths + __HERMES_BASE_PATH__).
+	# Host rewrite: dashboard enforces Host: 127.0.0.1 for CSRF.
+	handle_path /hermes/* {
 		basic_auth {
 			admin {$BASICAUTH_ADMIN_HASH}
 		}
