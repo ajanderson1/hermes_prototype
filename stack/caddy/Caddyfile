@@ -1,0 +1,22 @@
+{
+	email aj@{$HOSTNAME}
+}
+
+{$HOSTNAME} {
+	@health path /health
+	handle @health {
+		respond "ok" 200
+	}
+
+	@walled path /mitm* /graf* /hermes*
+	handle @walled {
+		basic_auth /* {
+			admin {$BASICAUTH_ADMIN_HASH}
+		}
+		respond "placeholder — not implemented in P1" 503
+	}
+
+	handle {
+		respond "Hermes prototype OK" 200
+	}
+}
