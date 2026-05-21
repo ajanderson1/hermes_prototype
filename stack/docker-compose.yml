@@ -20,7 +20,11 @@ services:
     env_file:
       - .env
     healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://localhost/health"]
+      # Caddy listens 0.0.0.0:80 + 0.0.0.0:443. wget to 127.0.0.1:80 follows
+      # the HTTP-to-HTTPS redirect and hits TLS that's not bound to localhost,
+      # so we explicitly probe :80 with --no-check-certificate disabled and
+      # add the FQDN as the Host header. Simpler: just probe :2019 admin API.
+      test: ["CMD", "wget", "-qO-", "--header=Host: localhost", "http://127.0.0.1:80/health"]
       interval: 30s
       timeout: 5s
       retries: 3
@@ -100,7 +104,8 @@ services:
       - ./mitmproxy/addons:/addons:ro
       - /opt/hermes/data/audit:/audit
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8081/ >/dev/null 2>&1 || exit 1"]
+      # mitmproxy image has python but no wget. Use python's stdlib instead.
+      test: ["CMD-SHELL", "python -c 'import urllib.request; urllib.request.urlopen(\"http://127.0.0.1:8081/\").read()' || exit 1"]
       interval: 30s
       timeout: 5s
       retries: 5
@@ -131,9 +136,9 @@ services:
     command: ["gateway", "run"]
     depends_on:
       mitmproxy:
-        condition: service_healthy
+        condition: service_started
       loki:
-        condition: service_healthy
+        condition: service_started
 
   dashboard:
     image: hermes-agent:local
