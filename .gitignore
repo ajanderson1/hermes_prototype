@@ -45,4 +45,6 @@ __pycache__/
 
 # Project notes (Obsidian-side artefacts that shouldn't live in repo)
 .obsidian/
+.claude/
+.mcp.json
 stack/.env.age
