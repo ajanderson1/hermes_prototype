@@ -7,4 +7,14 @@ locals {
     repo_url      = "https://github.com/ajanderson1/hermes_prototype.git"
     repo_ref      = "main"
   })
+
+  public_ip = coalesce(
+    try(module.gcp[0].public_ip, ""),
+    try(module.hetzner[0].public_ip, ""),
+  )
+
+  ssh_target = coalesce(
+    try(module.gcp[0].ssh_target, ""),
+    try(module.hetzner[0].ssh_target, ""),
+  )
 }

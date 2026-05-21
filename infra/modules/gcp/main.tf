@@ -1,9 +1,3 @@
-provider "google" {
-  project     = var.project_id
-  region      = var.region
-  credentials = file(var.credentials_file)
-}
-
 resource "google_compute_network" "main" {
   name                    = "hermes-net"
   auto_create_subnetworks = true

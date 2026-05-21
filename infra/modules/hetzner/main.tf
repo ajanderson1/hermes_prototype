@@ -1,7 +1,3 @@
-provider "hcloud" {
-  token = var.token
-}
-
 resource "hcloud_ssh_key" "main" {
   name       = "hermes-prototype"
   public_key = var.ssh_pubkey
