@@ -4,10 +4,6 @@ provider "google" {
   credentials = file(var.credentials_file)
 }
 
-data "google_compute_zones" "available" {
-  region = var.region
-}
-
 resource "google_compute_network" "main" {
   name                    = "hermes-net"
   auto_create_subnetworks = true
@@ -38,7 +34,7 @@ resource "google_compute_firewall" "web" {
 resource "google_compute_instance" "main" {
   name         = "hermes-vm"
   machine_type = var.machine_type
-  zone         = data.google_compute_zones.available.names[0]
+  zone         = "${var.region}-a"
   tags         = ["hermes"]
 
   boot_disk {
