@@ -13,7 +13,7 @@ secrets/
 *.tfstate
 *.tfstate.*
 *.tfvars
-!envs/*.tfvars.example
+!infra/envs/example.tfvars
 crash.log
 crash.*.log
 
