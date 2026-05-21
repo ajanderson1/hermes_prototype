@@ -23,8 +23,21 @@
 	}
 
 	# mitmweb — egress audit UI.
+	# mitmweb's frontend constructs URLs with `location.origin + "/path"` and
+	# IGNORES any sub-path prefix. So we route both /mitm/* (HTML/JS/CSS) AND
+	# the root-level paths mitmweb's JS hardcodes (/updates WS, /flows, /commands,
+	# /clear, /options, /filter-help, /processes) to the same upstream.
 	# mitmweb's DNS-rebinding guard rejects any Host: header that isn't an IP
-	# or 'localhost'. We rewrite Host: 127.0.0.1:8081 before forwarding.
+	# or 'localhost' — Caddy rewrites Host: 127.0.0.1:8081 on forward.
+	@mitm_api path /updates /flows /flows/* /commands /clear /options /filter-help /processes /static/* /dns-rebind
+	handle @mitm_api {
+		basic_auth {
+			admin {$BASICAUTH_ADMIN_HASH}
+		}
+		reverse_proxy 127.0.0.1:8081 {
+			header_up Host 127.0.0.1:8081
+		}
+	}
 	handle_path /mitm/* {
 		basic_auth {
 			admin {$BASICAUTH_ADMIN_HASH}
