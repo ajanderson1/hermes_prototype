@@ -30,6 +30,25 @@ for path in /mitm /graf /hermes; do
 done
 pass "walled paths return 401"
 
+# 3b. With valid basic-auth credentials, walled paths reach the upstream
+# (200, 302, or 401 from the upstream itself are all "the proxy works").
+# This requires BASICAUTH_USER + BASICAUTH_PASS env vars.
+if [[ -n "${BASICAUTH_USER:-}" && -n "${BASICAUTH_PASS:-}" ]]; then
+  for spec in "graf:200 302" "mitm:200 401" "hermes:200 302 401 502"; do
+    path="${spec%%:*}"; allowed="${spec#*:}"
+    CODE=$(curl -sko /dev/null -w '%{http_code}' --max-time 10 \
+      -u "$BASICAUTH_USER:$BASICAUTH_PASS" "https://$HOSTNAME/$path/" || true)
+    # shellcheck disable=SC2076
+    if [[ " $allowed " =~ " $CODE " ]]; then
+      pass "/$path reaches upstream (code=$CODE)"
+    else
+      fail "/$path with auth returned $CODE (expected one of: $allowed)"
+    fi
+  done
+else
+  echo "SKIP: authenticated upstream probes (set BASICAUTH_USER + BASICAUTH_PASS)"
+fi
+
 # 4. Containers healthy (over SSH)
 if [[ -n "$SSH_TARGET" ]]; then
   STATUS=$(ssh -p "$SSH_PORT" -o StrictHostKeyChecking=accept-new "$SSH_TARGET" \

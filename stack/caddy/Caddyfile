@@ -8,12 +8,40 @@
 		respond "ok" 200
 	}
 
-	@walled path /mitm* /graf* /hermes*
-	handle @walled {
-		basic_auth /* {
+	# Grafana — observability dashboard
+	handle_path /graf/* {
+		basic_auth {
 			admin {$BASICAUTH_ADMIN_HASH}
 		}
-		respond "placeholder — not implemented in P1" 503
+		reverse_proxy 127.0.0.1:3000
+	}
+	@graf_root path /graf
+	handle @graf_root {
+		redir /graf/ permanent
+	}
+
+	# mitmweb — egress audit UI
+	handle_path /mitm/* {
+		basic_auth {
+			admin {$BASICAUTH_ADMIN_HASH}
+		}
+		reverse_proxy 127.0.0.1:8081
+	}
+	@mitm_root path /mitm
+	handle @mitm_root {
+		redir /mitm/ permanent
+	}
+
+	# Hermes — agent web surface (optional UI / status)
+	handle_path /hermes/* {
+		basic_auth {
+			admin {$BASICAUTH_ADMIN_HASH}
+		}
+		reverse_proxy 127.0.0.1:8088
+	}
+	@hermes_root path /hermes
+	handle @hermes_root {
+		redir /hermes/ permanent
 	}
 
 	handle {

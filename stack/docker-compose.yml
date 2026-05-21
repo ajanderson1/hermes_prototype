@@ -1,5 +1,12 @@
 name: hermes
 
+# All services use network_mode: host so Caddy can reverse_proxy to 127.0.0.1:<port>
+# and so Hermes' HTTPS_PROXY=http://127.0.0.1:8080 reaches mitmproxy directly.
+# Acceptable on a single-tenant prototype VM behind GCP firewall + Caddy.
+#
+# The hermes / dashboard / mcp-scan services build from ../hermes-upstream
+# (populated by scripts/install-hermes-upstream.sh, pinned to a Nous tag).
+
 services:
   caddy:
     image: caddy:2-alpine
@@ -10,17 +17,156 @@ services:
       - ./caddy/Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy_data:/data
       - caddy_config:/config
-    environment:
-      - CLOUDFLARE_API_TOKEN
-      - HOSTNAME
-      - OPERATOR_CIDRS
-      - BASICAUTH_ADMIN_HASH
+    env_file:
+      - .env
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://localhost/health"]
       interval: 30s
       timeout: 5s
       retries: 3
 
+  loki:
+    image: grafana/loki:3.2.1
+    container_name: loki
+    restart: unless-stopped
+    network_mode: host
+    command: -config.file=/etc/loki/loki-config.yaml
+    volumes:
+      - ./loki/loki-config.yaml:/etc/loki/loki-config.yaml:ro
+      - loki_data:/loki
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3100/ready"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  promtail:
+    image: grafana/promtail:3.2.1
+    container_name: promtail
+    restart: unless-stopped
+    network_mode: host
+    command: -config.file=/etc/promtail/promtail-config.yaml
+    volumes:
+      - ./promtail/promtail-config.yaml:/etc/promtail/promtail-config.yaml:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - audit_data:/audit:ro
+    depends_on:
+      - loki
+
+  grafana:
+    image: grafana/grafana:11.3.0
+    container_name: grafana
+    restart: unless-stopped
+    network_mode: host
+    env_file:
+      - .env
+    environment:
+      - GF_SERVER_HTTP_PORT=3000
+      - GF_SERVER_ROOT_URL=https://%(domain)s/graf/
+      - GF_SERVER_SERVE_FROM_SUB_PATH=true
+      - GF_AUTH_ANONYMOUS_ENABLED=false
+      - GF_USERS_ALLOW_SIGN_UP=false
+      - GF_ANALYTICS_REPORTING_ENABLED=false
+      - GF_ANALYTICS_CHECK_FOR_UPDATES=false
+      - GF_LOG_LEVEL=warn
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
+    depends_on:
+      - loki
+
+  mitmproxy:
+    image: mitmproxy/mitmproxy:11.0.2
+    container_name: mitmproxy
+    restart: unless-stopped
+    network_mode: host
+    command: >-
+      mitmweb
+      --listen-host 127.0.0.1
+      --listen-port 8080
+      --web-host 127.0.0.1
+      --web-port 8081
+      --set web_open_browser=false
+      --set confdir=/home/mitmproxy/.mitmproxy
+      --scripts /addons/audit.py
+    volumes:
+      - mitm_data:/home/mitmproxy/.mitmproxy
+      - ./mitmproxy/addons:/addons:ro
+      - audit_data:/audit
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8081/ >/dev/null 2>&1 || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 60s
+
+  hermes:
+    build:
+      context: ../hermes-upstream
+    image: hermes-agent:local
+    container_name: hermes
+    restart: unless-stopped
+    network_mode: host
+    env_file:
+      - .env
+    environment:
+      - HERMES_UID=10000
+      - HERMES_GID=10000
+      - HTTPS_PROXY=http://127.0.0.1:8080
+      - HTTP_PROXY=http://127.0.0.1:8080
+      - NO_PROXY=127.0.0.1,localhost,api.telegram.org
+      - REQUESTS_CA_BUNDLE=/opt/data/mitm-certs/mitmproxy-ca-cert.pem
+      - SSL_CERT_FILE=/opt/data/mitm-certs/mitmproxy-ca-cert.pem
+      - PYTHONUNBUFFERED=1
+    volumes:
+      - hermes_data:/opt/data
+      - mitm_data:/opt/data/mitm-certs:ro
+      - audit_data:/audit
+    command: ["gateway", "run"]
+    depends_on:
+      mitmproxy:
+        condition: service_healthy
+      loki:
+        condition: service_healthy
+
+  dashboard:
+    image: hermes-agent:local
+    container_name: hermes-dashboard
+    restart: unless-stopped
+    network_mode: host
+    environment:
+      - HERMES_UID=10000
+      - HERMES_GID=10000
+    volumes:
+      - hermes_data:/opt/data
+    command: ["dashboard", "--host", "127.0.0.1", "--port", "8088", "--no-open"]
+    depends_on:
+      - hermes
+
+  mcp-scan:
+    image: hermes-agent:local
+    container_name: hermes-mcp-scan
+    restart: unless-stopped
+    network_mode: host
+    environment:
+      - HERMES_UID=10000
+      - HERMES_GID=10000
+      - HERMES_AUDIT_DIR=/audit
+    volumes:
+      - hermes_data:/opt/data
+      - audit_data:/audit
+      - ./mcp-scan/scan.sh:/usr/local/bin/scan.sh:ro
+    entrypoint: ["/usr/local/bin/scan.sh"]
+    depends_on:
+      - hermes
+
 volumes:
   caddy_data:
   caddy_config:
+  loki_data:
+  grafana_data:
+  mitm_data:
+  audit_data:
+  hermes_data:
