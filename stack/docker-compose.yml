@@ -50,7 +50,7 @@ services:
     volumes:
       - ./promtail/promtail-config.yaml:/etc/promtail/promtail-config.yaml:ro
       - /var/run/docker.sock:/var/run/docker.sock:ro
-      - audit_data:/audit:ro
+      - /opt/hermes/data/audit:/audit:ro
     depends_on:
       - loki
 
@@ -98,7 +98,7 @@ services:
     volumes:
       - mitm_data:/home/mitmproxy/.mitmproxy
       - ./mitmproxy/addons:/addons:ro
-      - audit_data:/audit
+      - /opt/hermes/data/audit:/audit
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8081/ >/dev/null 2>&1 || exit 1"]
       interval: 30s
@@ -127,7 +127,7 @@ services:
     volumes:
       - hermes_data:/opt/data
       - mitm_data:/opt/data/mitm-certs:ro
-      - audit_data:/audit
+      - /opt/hermes/data/audit:/audit
     command: ["gateway", "run"]
     depends_on:
       mitmproxy:
@@ -160,7 +160,7 @@ services:
       - HERMES_AUDIT_DIR=/audit
     volumes:
       - hermes_data:/opt/data
-      - audit_data:/audit
+      - /opt/hermes/data/audit:/audit
       - ./mcp-scan/scan.sh:/usr/local/bin/scan.sh:ro
     entrypoint: ["/usr/local/bin/scan.sh"]
     depends_on:
@@ -172,5 +172,4 @@ volumes:
   loki_data:
   grafana_data:
   mitm_data:
-  audit_data:
   hermes_data:

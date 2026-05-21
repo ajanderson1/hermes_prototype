@@ -83,14 +83,19 @@ write_files:
         echo "WARN: /opt/hermes/secrets/age.key or .env.age missing — stack/.env will not be created at boot. SCP these after boot then run: cd /opt/hermes/stack && docker compose up -d"
       fi
 
-      # 5. Clone upstream Hermes Agent source (needed by docker compose build)
+      # 5. Pre-create the shared audit dir with world-write so mitmproxy
+      # (uid 1001) and hermes (uid 10000) can both append JSONL records.
+      mkdir -p /opt/hermes/data/audit
+      chmod 0777 /opt/hermes/data/audit
+
+      # 6. Clone upstream Hermes Agent source (needed by docker compose build)
       sudo -u hermes /opt/hermes/scripts/install-hermes-upstream.sh \
         || echo "WARN: failed to clone upstream hermes-agent — gateway/dashboard/mcp-scan will fail to build until you re-run scripts/install-hermes-upstream.sh"
 
-      # 6. Bring up the stack
+      # 7. Bring up the stack
       cd /opt/hermes/stack && docker compose up -d || echo "WARN: docker compose up failed — likely missing /opt/hermes/stack/.env; SCP age key + .env.age then retry"
 
-      # 7. Signal ready
+      # 8. Signal ready
       touch /var/lib/hermes-bootstrap-complete
 
 runcmd:
