@@ -39,14 +39,19 @@
 	}
 
 	# Hermes — agent web surface (the hermes-dashboard uvicorn app).
-	# The dashboard enforces Host: 127.0.0.1 to prevent CSRF on a chat UI
-	# that handles API keys — Caddy rewrites the Host header before forwarding.
-	handle_path /hermes/* {
+	# Hermes' dashboard supports sub-path serving via X-Forwarded-Prefix —
+	# it then injects the prefix into asset URLs + __HERMES_BASE_PATH__.
+	# Use `handle` (NOT `handle_path`) to KEEP the /hermes prefix so the
+	# dashboard sees the URL it expects and the SPA's API calls also land
+	# under /hermes/api/.
+	# Host rewrite needed because the dashboard enforces Host: 127.0.0.1.
+	handle /hermes/* {
 		basic_auth {
 			admin {$BASICAUTH_ADMIN_HASH}
 		}
 		reverse_proxy 127.0.0.1:8088 {
 			header_up Host 127.0.0.1:8088
+			header_up X-Forwarded-Prefix /hermes
 		}
 	}
 	@hermes_root path /hermes
