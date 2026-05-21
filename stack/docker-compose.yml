@@ -125,9 +125,15 @@ services:
       - HERMES_GID=10000
       - HTTPS_PROXY=http://127.0.0.1:8080
       - HTTP_PROXY=http://127.0.0.1:8080
-      - NO_PROXY=127.0.0.1,localhost,api.telegram.org
+      - https_proxy=http://127.0.0.1:8080
+      - http_proxy=http://127.0.0.1:8080
+      # Telegram blocks intercepted TLS — bypass mitmproxy. Both case
+      # variants because httpx, urllib3 + requests check different ones.
+      - NO_PROXY=127.0.0.1,localhost,api.telegram.org,*.telegram.org
+      - no_proxy=127.0.0.1,localhost,api.telegram.org,*.telegram.org
       - REQUESTS_CA_BUNDLE=/opt/data/mitm-certs/mitmproxy-ca-cert.pem
       - SSL_CERT_FILE=/opt/data/mitm-certs/mitmproxy-ca-cert.pem
+      - CURL_CA_BUNDLE=/opt/data/mitm-certs/mitmproxy-ca-cert.pem
       - PYTHONUNBUFFERED=1
     volumes:
       - hermes_data:/opt/data
